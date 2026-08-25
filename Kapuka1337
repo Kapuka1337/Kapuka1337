@@ -1,0 +1,1334 @@
+-- STREAMING_CHUNK:Инициализация сервисов
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = game.Workspace.CurrentCamera
+
+-- STREAMING_CHUNK:Глобальные настройки
+local AimbotSettings = {
+Enabled = false,
+ActivationMode = "Hold", -- "Always", "Hold", "Toggle"
+Bind = Enum.UserInputType.MouseButton2,
+BindName = "ПКМ",
+TargetBone = "Голова",
+Smoothness = 3,
+FOV = 90,
+ShowFOV = true,
+ToggleState = false
+}
+
+local ESPSettings = {
+Enabled = false,
+Chams = false,
+Skeleton = false,
+Boxes = false,
+ChamsColor = Color3.fromRGB(200, 50, 50),
+SkeletonColor = Color3.fromRGB(255, 255, 255),
+BoxColor = Color3.fromRGB(255, 255, 255)
+}
+
+-- Безопасная функция удаления Drawing объектов для любых экзекуторов
+local function SafeRemoveDrawing(obj)
+if not obj then return end
+pcall(function() obj.Visible = false end)
+pcall(function() obj:Remove() end)
+pcall(function() obj:Destroy() end)
+end
+
+-- STREAMING_CHUNK:Очистка предыдущих версий
+if CoreGui:FindFirstChild("LuxifyMenu") then
+CoreGui.LuxifyMenu:Destroy()
+end
+
+-- Очищаем рисунки старого скрипта
+if getgenv().KapukaFOVCircle then
+SafeRemoveDrawing(getgenv().KapukaFOVCircle)
+getgenv().KapukaFOVCircle = nil
+end
+if getgenv().ClearKapukaESP then
+getgenv().ClearKapukaESP()
+end
+
+-- Отключаем все зависшие фоновые ивенты от прошлого запуска
+if getgenv().KapukaConnections then
+for _, conn in pairs(getgenv().KapukaConnections) do
+pcall(function() conn:Disconnect() end)
+end
+end
+getgenv().KapukaConnections = {}
+
+-- STREAMING_CHUNK:Создание главного GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "LuxifyMenu"
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ResetOnSpawn = false
+local success, _ = pcall(function() ScreenGui.Parent = CoreGui end)
+if not success then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+-- STREAMING_CHUNK:Система ключа
+local KeyFrame = Instance.new("Frame")
+KeyFrame.Name = "KeyFrame"
+KeyFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+KeyFrame.Size = UDim2.new(0, 0, 0, 0) -- Начинаем с 0 для анимации появления
+KeyFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+KeyFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+KeyFrame.BackgroundTransparency = 0.15
+KeyFrame.BorderSizePixel = 0
+KeyFrame.ClipsDescendants = true
+KeyFrame.Parent = ScreenGui
+
+local KeyUICorner = Instance.new("UICorner")
+KeyUICorner.CornerRadius = UDim.new(0, 14)
+KeyUICorner.Parent = KeyFrame
+
+local KeyUIStroke = Instance.new("UIStroke")
+KeyUIStroke.Color = Color3.fromRGB(90, 50, 200)
+KeyUIStroke.Thickness = 1.5
+KeyUIStroke.Parent = KeyFrame
+
+local KeyDesc = Instance.new("TextLabel")
+KeyDesc.Size = UDim2.new(1, -40, 0, 70)
+KeyDesc.Position = UDim2.new(0, 20, 0, 15)
+KeyDesc.BackgroundTransparency = 1
+KeyDesc.Text = "Введите ключ, если у вас его нет можно получить у Капуки."
+KeyDesc.TextColor3 = Color3.fromRGB(220, 220, 220)
+KeyDesc.Font = Enum.Font.GothamMedium
+KeyDesc.TextSize = 15
+KeyDesc.TextWrapped = true
+KeyDesc.Parent = KeyFrame
+
+local KeyInput = Instance.new("TextBox")
+KeyInput.Size = UDim2.new(1, -40, 0, 40)
+KeyInput.Position = UDim2.new(0, 20, 0, 95)
+KeyInput.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+KeyInput.PlaceholderText = "Введите ключ..."
+KeyInput.Text = ""
+KeyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyInput.Font = Enum.Font.GothamMedium
+KeyInput.TextSize = 14
+KeyInput.Parent = KeyFrame
+
+local KeyInputCorner = Instance.new("UICorner")
+KeyInputCorner.CornerRadius = UDim.new(0, 8)
+KeyInputCorner.Parent = KeyInput
+
+local KeyInputStroke = Instance.new("UIStroke")
+KeyInputStroke.Color = Color3.fromRGB(138, 75, 255)
+KeyInputStroke.Thickness = 1
+KeyInputStroke.Transparency = 0.5
+KeyInputStroke.Parent = KeyInput
+
+local KeyBtn = Instance.new("TextButton")
+KeyBtn.Size = UDim2.new(1, -40, 0, 40)
+KeyBtn.Position = UDim2.new(0, 20, 0, 155)
+KeyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+KeyBtn.Text = "Войти"
+KeyBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+KeyBtn.Font = Enum.Font.GothamBold
+KeyBtn.TextSize = 14
+KeyBtn.AutoButtonColor = false
+KeyBtn.Parent = KeyFrame
+
+local KeyBtnCorner = Instance.new("UICorner")
+KeyBtnCorner.CornerRadius = UDim.new(0, 8)
+KeyBtnCorner.Parent = KeyBtn
+
+local isKeyValid = false
+local CORRECT_KEY = "Xte8l0yh4Ujk"
+
+KeyInput:GetPropertyChangedSignal("Text"):Connect(function()
+if KeyInput.Text == CORRECT_KEY then
+isKeyValid = true
+TweenService:Create(KeyBtn, TweenInfo.new(0.3), {
+BackgroundColor3 = Color3.fromRGB(138, 75, 255),
+TextColor3 = Color3.fromRGB(255, 255, 255)
+}):Play()
+else
+isKeyValid = false
+TweenService:Create(KeyBtn, TweenInfo.new(0.3), {
+BackgroundColor3 = Color3.fromRGB(40, 40, 50),
+TextColor3 = Color3.fromRGB(150, 150, 150)
+}):Play()
+end
+end)
+
+KeyBtn.MouseEnter:Connect(function()
+if isKeyValid then
+TweenService:Create(KeyBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(158, 95, 255)}):Play()
+end
+end)
+KeyBtn.MouseLeave:Connect(function()
+if isKeyValid then
+TweenService:Create(KeyBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(138, 75, 255)}):Play()
+end
+end)
+
+-- STREAMING_CHUNK:Создание Основного Окна
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.Size = UDim2.new(0, 0, 0, 0) -- Начинаем с 0 для анимации
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MainFrame.BackgroundTransparency = 0.15
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Visible = false -- Скрыто до ввода ключа
+MainFrame.Parent = ScreenGui
+
+local MainUICorner = Instance.new("UICorner")
+MainUICorner.CornerRadius = UDim.new(0, 14)
+MainUICorner.Parent = MainFrame
+
+local MainUIStroke = Instance.new("UIStroke")
+MainUIStroke.Color = Color3.fromRGB(90, 50, 200)
+MainUIStroke.Thickness = 1.5
+MainUIStroke.Parent = MainFrame
+
+-- STREAMING_CHUNK:Верхняя панель (TopBar)
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 50)
+TopBar.BackgroundTransparency = 1
+TopBar.Parent = MainFrame
+
+local function applyHoverEffect(button, defaultColor, hoverColor)
+button.MouseEnter:Connect(function()
+TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor}):Play()
+end)
+button.MouseLeave:Connect(function()
+TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = defaultColor}):Play()
+end)
+end
+
+local function applyTextHoverEffect(button, defaultColor, hoverColor)
+button.MouseEnter:Connect(function()
+TweenService:Create(button, TweenInfo.new(0.2), {TextColor3 = hoverColor}):Play()
+end)
+button.MouseLeave:Connect(function()
+TweenService:Create(button, TweenInfo.new(0.2), {TextColor3 = defaultColor}):Play()
+end)
+end
+
+local MenuBtn = Instance.new("TextButton")
+MenuBtn.Size = UDim2.new(0, 30, 0, 30)
+MenuBtn.Position = UDim2.new(0, 20, 0, 10)
+MenuBtn.BackgroundTransparency = 1
+MenuBtn.Text = "≡"
+MenuBtn.TextColor3 = Color3.fromRGB(150, 150, 170)
+MenuBtn.Font = Enum.Font.GothamBold
+MenuBtn.TextSize = 20
+MenuBtn.Parent = TopBar
+applyTextHoverEffect(MenuBtn, Color3.fromRGB(150, 150, 170), Color3.fromRGB(255, 255, 255))
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(0, 200, 1, 0)
+Title.Position = UDim2.new(0, 60, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Kapuka Premium"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TopBar
+
+-- Кнопка закрытия
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Name = "CloseBtn"
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -40, 0, 10)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(138, 75, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 18
+CloseBtn.Parent = TopBar
+applyTextHoverEffect(CloseBtn, Color3.fromRGB(138, 75, 255), Color3.fromRGB(255, 100, 100))
+
+-- Кнопка сворачивания
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Name = "MinimizeBtn"
+MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+MinimizeBtn.Position = UDim2.new(1, -80, 0, 10)
+MinimizeBtn.BackgroundTransparency = 1
+MinimizeBtn.Text = "—"
+MinimizeBtn.TextColor3 = Color3.fromRGB(150, 150, 170)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.TextSize = 16
+MinimizeBtn.Parent = TopBar
+applyTextHoverEffect(MinimizeBtn, Color3.fromRGB(150, 150, 170), Color3.fromRGB(255, 255, 255))
+
+-- STREAMING_CHUNK:Боковое меню и Вкладки
+local SidePanel = Instance.new("Frame")
+SidePanel.Size = UDim2.new(0, 150, 1, -50)
+SidePanel.Position = UDim2.new(0, 0, 0, 50)
+SidePanel.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+SidePanel.BackgroundTransparency = 0.5
+SidePanel.BorderSizePixel = 0
+SidePanel.ZIndex = 5
+SidePanel.Parent = MainFrame
+
+local SideListLayout = Instance.new("UIListLayout")
+SideListLayout.Parent = SidePanel
+SideListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+SideListLayout.Padding = UDim.new(0, 8)
+SideListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local SidePadding = Instance.new("UIPadding")
+SidePadding.Parent = SidePanel
+SidePadding.PaddingTop = UDim.new(0, 15)
+
+local btnNames = {"Аимбот", "ВХ (ESP)", "Инфо"}
+local sideButtons = {}
+
+for i, name in ipairs(btnNames) do
+local SideBtn = Instance.new("TextButton")
+SideBtn.Size = UDim2.new(0.85, 0, 0, 35)
+SideBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+SideBtn.BackgroundTransparency = 0.3
+SideBtn.Text = name
+SideBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+SideBtn.Font = Enum.Font.GothamMedium
+SideBtn.TextSize = 14
+SideBtn.AutoButtonColor = false
+SideBtn.ZIndex = 6
+SideBtn.Parent = SidePanel
+
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0, 8)
+BtnCorner.Parent = SideBtn
+
+local BtnStroke = Instance.new("UIStroke")
+BtnStroke.Color = Color3.fromRGB(90, 50, 200)
+BtnStroke.Thickness = 0.5
+BtnStroke.Transparency = 0.5
+BtnStroke.Parent = SideBtn
+
+applyHoverEffect(SideBtn, Color3.fromRGB(30, 30, 40), Color3.fromRGB(90, 50, 200))
+table.insert(sideButtons, SideBtn)
+
+
+end
+
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Size = UDim2.new(1, -150, 1, -50)
+ContentContainer.Position = UDim2.new(0, 150, 0, 50)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.Parent = MainFrame
+
+-- Вкладка Аимбота
+local AimbotTab = Instance.new("ScrollingFrame")
+AimbotTab.Size = UDim2.new(1, 0, 1, 0)
+AimbotTab.BackgroundTransparency = 1
+AimbotTab.ScrollBarImageColor3 = Color3.fromRGB(90, 50, 200)
+AimbotTab.ScrollBarThickness = 4
+AimbotTab.BorderSizePixel = 0
+AimbotTab.Visible = true
+AimbotTab.Parent = ContentContainer
+
+local AimbotLayout = Instance.new("UIListLayout")
+AimbotLayout.Parent = AimbotTab
+AimbotLayout.SortOrder = Enum.SortOrder.LayoutOrder
+AimbotLayout.Padding = UDim.new(0, 12)
+
+local AimbotPadding = Instance.new("UIPadding")
+AimbotPadding.Parent = AimbotTab
+AimbotPadding.PaddingTop = UDim.new(0, 15)
+AimbotPadding.PaddingLeft = UDim.new(0, 15)
+AimbotPadding.PaddingRight = UDim.new(0, 15)
+
+AimbotLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+AimbotTab.CanvasSize = UDim2.new(0, 0, 0, AimbotLayout.AbsoluteContentSize.Y + 30)
+end)
+
+-- Вкладка ВХ (ESP)
+local EspTab = Instance.new("ScrollingFrame")
+EspTab.Size = UDim2.new(1, 0, 1, 0)
+EspTab.BackgroundTransparency = 1
+EspTab.ScrollBarImageColor3 = Color3.fromRGB(90, 50, 200)
+EspTab.ScrollBarThickness = 4
+EspTab.BorderSizePixel = 0
+EspTab.Visible = false
+EspTab.Parent = ContentContainer
+
+local EspLayout = Instance.new("UIListLayout")
+EspLayout.Parent = EspTab
+EspLayout.SortOrder = Enum.SortOrder.LayoutOrder
+EspLayout.Padding = UDim.new(0, 12)
+
+local EspPadding = Instance.new("UIPadding")
+EspPadding.Parent = EspTab
+EspPadding.PaddingTop = UDim.new(0, 15)
+EspPadding.PaddingLeft = UDim.new(0, 15)
+EspPadding.PaddingRight = UDim.new(0, 15)
+
+EspLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+EspTab.CanvasSize = UDim2.new(0, 0, 0, EspLayout.AbsoluteContentSize.Y + 30)
+end)
+
+-- Вкладка Инфо
+local InfoTab = Instance.new("Frame")
+InfoTab.Size = UDim2.new(1, 0, 1, 0)
+InfoTab.BackgroundTransparency = 1
+InfoTab.Visible = false
+InfoTab.Parent = ContentContainer
+
+local InfoText = Instance.new("TextLabel")
+InfoText.Size = UDim2.new(1, 0, 1, 0)
+InfoText.BackgroundTransparency = 1
+InfoText.Text = "Kapuka Premium\n\nДизайн: Luxify\nФункционал: Kapuka\n\nНаслаждайся гибкими настройками!"
+InfoText.TextColor3 = Color3.fromRGB(220, 220, 220)
+InfoText.Font = Enum.Font.GothamMedium
+InfoText.TextSize = 16
+InfoText.Parent = InfoTab
+
+-- STREAMING_CHUNK:Генераторы UI элементов (Тумблеры, Слайдеры)
+local function CreateToggleButton(parent, text, defaultText, callback)
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(1, 0, 0, 40)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+Frame.BackgroundTransparency = 0.5
+Frame.Parent = parent
+
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 8)
+FrameCorner.Parent = Frame
+
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Color = Color3.fromRGB(90, 50, 200)
+FrameStroke.Thickness = 0.5
+FrameStroke.Transparency = 0.7
+FrameStroke.Parent = Frame
+
+local Label = Instance.new("TextLabel")
+Label.Size = UDim2.new(0.5, -15, 1, 0)
+Label.Position = UDim2.new(0, 15, 0, 0)
+Label.BackgroundTransparency = 1
+Label.Text = text
+Label.TextColor3 = Color3.fromRGB(220, 220, 220)
+Label.Font = Enum.Font.GothamMedium
+Label.TextSize = 14
+Label.TextXAlignment = Enum.TextXAlignment.Left
+Label.Parent = Frame
+
+local Btn = Instance.new("TextButton")
+Btn.Size = UDim2.new(0.4, 0, 0, 30)
+Btn.Position = UDim2.new(0.55, 0, 0.5, -15)
+Btn.BackgroundColor3 = Color3.fromRGB(138, 75, 255)
+Btn.BackgroundTransparency = 0.8
+Btn.Text = defaultText
+Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Btn.Font = Enum.Font.GothamMedium
+Btn.TextSize = 13
+Btn.AutoButtonColor = false
+Btn.Parent = Frame
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 6)
+Corner.Parent = Btn
+
+local BtnStroke = Instance.new("UIStroke")
+BtnStroke.Color = Color3.fromRGB(138, 75, 255)
+BtnStroke.Thickness = 1
+BtnStroke.Transparency = 0.3
+BtnStroke.Parent = Btn
+
+local state = (defaultText == "ВКЛ" or defaultText == "Вкл")
+if state then
+    Btn.BackgroundTransparency = 0.2
+end
+
+Btn.MouseButton1Click:Connect(function() 
+    callback(Btn) 
+    if Btn.Text == "ВКЛ" or Btn.Text == "Вкл" then
+        TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
+    else
+        TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.8}):Play()
+    end
+end)
+return Btn
+
+
+end
+
+local function CreateSlider(parent, text, min, max, default, settingKey)
+local SliderFrame = Instance.new("Frame")
+SliderFrame.Size = UDim2.new(1, 0, 0, 55)
+SliderFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+SliderFrame.BackgroundTransparency = 0.5
+SliderFrame.Parent = parent
+
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 8)
+FrameCorner.Parent = SliderFrame
+
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Color = Color3.fromRGB(90, 50, 200)
+FrameStroke.Thickness = 0.5
+FrameStroke.Transparency = 0.7
+FrameStroke.Parent = SliderFrame
+
+local SliderLabel = Instance.new("TextLabel")
+SliderLabel.Size = UDim2.new(1, -30, 0, 25)
+SliderLabel.Position = UDim2.new(0, 15, 0, 5)
+SliderLabel.BackgroundTransparency = 1
+SliderLabel.Text = text .. ": " .. tostring(default)
+SliderLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+SliderLabel.Font = Enum.Font.GothamMedium
+SliderLabel.TextSize = 14
+SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+SliderLabel.Parent = SliderFrame
+
+local SliderBg = Instance.new("TextButton")
+SliderBg.Size = UDim2.new(1, -30, 0, 10)
+SliderBg.Position = UDim2.new(0, 15, 0, 35)
+SliderBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+SliderBg.Text = ""
+SliderBg.AutoButtonColor = false
+SliderBg.Parent = SliderFrame
+
+local SliderBgCorner = Instance.new("UICorner")
+SliderBgCorner.CornerRadius = UDim.new(1, 0)
+SliderBgCorner.Parent = SliderBg
+
+local SliderFill = Instance.new("Frame")
+local percent = (default - min) / (max - min)
+SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+SliderFill.BackgroundColor3 = Color3.fromRGB(138, 75, 255)
+SliderFill.Parent = SliderBg
+
+local SliderFillCorner = Instance.new("UICorner")
+SliderFillCorner.CornerRadius = UDim.new(1, 0)
+SliderFillCorner.Parent = SliderFill
+
+local FillGlow = Instance.new("UIStroke")
+FillGlow.Color = Color3.fromRGB(138, 75, 255)
+FillGlow.Thickness = 1
+FillGlow.Transparency = 0.8
+FillGlow.Parent = SliderFill
+
+local dragging = false
+local function updateSlider(input)
+    local relativeX = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
+    TweenService:Create(SliderFill, TweenInfo.new(0.1), {Size = UDim2.new(relativeX, 0, 1, 0)}):Play()
+    local value = math.floor(min + (max - min) * relativeX)
+    SliderLabel.Text = text .. ": " .. tostring(value)
+    AimbotSettings[settingKey] = value
+end
+
+SliderBg.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        updateSlider(input)
+    end
+end)
+
+SliderBg.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+table.insert(getgenv().KapukaConnections, UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateSlider(input)
+    end
+end))
+
+
+end
+
+-- STREAMING_CHUNK:Новый Color Picker (Аккордеон)
+local function CreateColorButton(parent, text, defaultColor, callback)
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(1, 0, 0, 40)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+Frame.BackgroundTransparency = 0.5
+Frame.ClipsDescendants = true
+Frame.Parent = parent
+
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 8)
+FrameCorner.Parent = Frame
+
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Color = Color3.fromRGB(90, 50, 200)
+FrameStroke.Thickness = 0.5
+FrameStroke.Transparency = 0.7
+FrameStroke.Parent = Frame
+
+local Label = Instance.new("TextLabel")
+Label.Size = UDim2.new(0.5, -15, 0, 40)
+Label.Position = UDim2.new(0, 15, 0, 0)
+Label.BackgroundTransparency = 1
+Label.Text = text
+Label.TextColor3 = Color3.fromRGB(220, 220, 220)
+Label.Font = Enum.Font.GothamMedium
+Label.TextSize = 14
+Label.TextXAlignment = Enum.TextXAlignment.Left
+Label.Parent = Frame
+
+local Btn = Instance.new("TextButton")
+Btn.Size = UDim2.new(0.4, 0, 0, 30)
+Btn.Position = UDim2.new(0.55, 0, 0, 5)
+Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+Btn.Text = "Выбрать"
+Btn.TextColor3 = defaultColor
+Btn.Font = Enum.Font.GothamBold
+Btn.TextSize = 13
+Btn.AutoButtonColor = false
+Btn.Parent = Frame
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 6)
+Corner.Parent = Btn
+
+local BtnStroke = Instance.new("UIStroke")
+BtnStroke.Color = defaultColor
+BtnStroke.Thickness = 1
+BtnStroke.Transparency = 0.3
+BtnStroke.Parent = Btn
+
+applyHoverEffect(Btn, Color3.fromRGB(30, 30, 40), Color3.fromRGB(45, 45, 55))
+
+local Palette = Instance.new("Frame")
+Palette.Size = UDim2.new(1, -30, 0, 70)
+Palette.Position = UDim2.new(0, 15, 0, 45)
+Palette.BackgroundTransparency = 1
+Palette.Parent = Frame
+
+local Grid = Instance.new("UIGridLayout")
+Grid.CellSize = UDim2.new(0, 26, 0, 26)
+Grid.CellPadding = UDim2.new(0, 8, 0, 8)
+Grid.SortOrder = Enum.SortOrder.LayoutOrder
+Grid.FillDirection = Enum.FillDirection.Horizontal
+Grid.Parent = Palette
+
+local extendedColors = {
+    Color3.fromRGB(255, 255, 255), Color3.fromRGB(180, 180, 180),
+    Color3.fromRGB(255, 50, 50), Color3.fromRGB(255, 120, 50),
+    Color3.fromRGB(255, 220, 50), Color3.fromRGB(150, 255, 50),
+    Color3.fromRGB(50, 255, 50), Color3.fromRGB(50, 255, 150),
+    Color3.fromRGB(50, 200, 255), Color3.fromRGB(50, 100, 255),
+    Color3.fromRGB(50, 50, 255), Color3.fromRGB(138, 75, 255),
+    Color3.fromRGB(200, 50, 255), Color3.fromRGB(255, 50, 150)
+}
+
+local isOpen = false
+
+Btn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen
+    local targetHeight = isOpen and 125 or 40
+    Btn.Text = isOpen and "Скрыть" or "Выбрать"
+    TweenService:Create(Frame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetHeight)}):Play()
+end)
+
+for i, c in ipairs(extendedColors) do
+    local cBtn = Instance.new("TextButton")
+    cBtn.BackgroundColor3 = c
+    cBtn.Text = ""
+    cBtn.Parent = Palette
+    
+    local cStroke = Instance.new("UIStroke")
+    cStroke.Color = Color3.fromRGB(255, 255, 255)
+    cStroke.Transparency = 0.8
+    cStroke.Thickness = 1
+    cStroke.Parent = cBtn
+    
+    local cCorner = Instance.new("UICorner")
+    cCorner.CornerRadius = UDim.new(0, 6)
+    cCorner.Parent = cBtn
+
+    cBtn.MouseButton1Click:Connect(function()
+        TweenService:Create(Btn, TweenInfo.new(0.2), {TextColor3 = c}):Play()
+        TweenService:Create(BtnStroke, TweenInfo.new(0.2), {Color = c}):Play()
+        callback(c)
+        
+        isOpen = false
+        Btn.Text = "Выбрать"
+        TweenService:Create(Frame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, 40)}):Play()
+    end)
+end
+return Btn
+
+
+end
+
+-- STREAMING_CHUNK:Генерация элементов настроек
+-- Настройки Аимбота (Вкладка 1)
+CreateToggleButton(AimbotTab, "Включить Аимбот:", AimbotSettings.Enabled and "ВКЛ" or "ВЫКЛ", function(btn)
+AimbotSettings.Enabled = not AimbotSettings.Enabled
+btn.Text = AimbotSettings.Enabled and "ВКЛ" or "ВЫКЛ"
+if not AimbotSettings.Enabled then AimbotSettings.ToggleState = false end
+end)
+
+local bones = {"Голова", "Торс", "Руки", "Ноги", "Ближайшая"}
+local currentBoneIndex = 1
+CreateToggleButton(AimbotTab, "Выбор кости:", AimbotSettings.TargetBone, function(btn)
+currentBoneIndex = currentBoneIndex + 1
+if currentBoneIndex > #bones then currentBoneIndex = 1 end
+AimbotSettings.TargetBone = bones[currentBoneIndex]
+btn.Text = AimbotSettings.TargetBone
+end)
+
+local modes = {"Hold", "Toggle", "Always"}
+local currentModeIndex = 1
+CreateToggleButton(AimbotTab, "Режим активации:", AimbotSettings.ActivationMode, function(btn)
+currentModeIndex = currentModeIndex + 1
+if currentModeIndex > #modes then currentModeIndex = 1 end
+AimbotSettings.ActivationMode = modes[currentModeIndex]
+btn.Text = AimbotSettings.ActivationMode
+AimbotSettings.ToggleState = false
+end)
+
+local isBinding = false
+local BindBtn = CreateToggleButton(AimbotTab, "Кнопка активации:", AimbotSettings.BindName, function(btn)
+btn.Text = "Нажмите..."
+isBinding = true
+end)
+
+table.insert(getgenv().KapukaConnections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
+if isBinding then
+if input.UserInputType == Enum.UserInputType.Keyboard then
+AimbotSettings.Bind = input.KeyCode
+AimbotSettings.BindName = input.KeyCode.Name
+BindBtn.Text = AimbotSettings.BindName
+elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+AimbotSettings.Bind = Enum.UserInputType.MouseButton1
+AimbotSettings.BindName = "ЛКМ"
+BindBtn.Text = AimbotSettings.BindName
+elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+AimbotSettings.Bind = Enum.UserInputType.MouseButton2
+AimbotSettings.BindName = "ПКМ"
+BindBtn.Text = AimbotSettings.BindName
+elseif input.UserInputType == Enum.UserInputType.MouseButton3 then
+AimbotSettings.Bind = Enum.UserInputType.MouseButton3
+AimbotSettings.BindName = "СКМ"
+BindBtn.Text = AimbotSettings.BindName
+end
+isBinding = false
+return
+end
+
+if gameProcessed then return end
+
+if AimbotSettings.Enabled and AimbotSettings.ActivationMode == "Toggle" then
+    if input.KeyCode == AimbotSettings.Bind or input.UserInputType == AimbotSettings.Bind then
+        AimbotSettings.ToggleState = not AimbotSettings.ToggleState
+    end
+end
+
+
+end))
+
+CreateToggleButton(AimbotTab, "Отображать FOV:", AimbotSettings.ShowFOV and "Вкл" or "Выкл", function(btn)
+AimbotSettings.ShowFOV = not AimbotSettings.ShowFOV
+btn.Text = AimbotSettings.ShowFOV and "Вкл" or "Выкл"
+end)
+
+CreateSlider(AimbotTab, "Плавность (Smoothness)", 1, 10, AimbotSettings.Smoothness, "Smoothness")
+CreateSlider(AimbotTab, "Размер FOV", 10, 500, AimbotSettings.FOV, "FOV")
+
+-- Настройки ВХ (Вкладка 2)
+CreateToggleButton(EspTab, "Глобальный ВХ:", ESPSettings.Enabled and "ВКЛ" or "ВЫКЛ", function(btn)
+ESPSettings.Enabled = not ESPSettings.Enabled
+btn.Text = ESPSettings.Enabled and "ВКЛ" or "ВЫКЛ"
+end)
+
+CreateToggleButton(EspTab, "Показывать Чамсы:", ESPSettings.Chams and "ВКЛ" or "ВЫКЛ", function(btn)
+ESPSettings.Chams = not ESPSettings.Chams
+btn.Text = ESPSettings.Chams and "ВКЛ" or "ВЫКЛ"
+end)
+
+CreateColorButton(EspTab, "Цвет Чамсов:", ESPSettings.ChamsColor, function(c) ESPSettings.ChamsColor = c end)
+
+CreateToggleButton(EspTab, "Скелет (Кости):", ESPSettings.Skeleton and "ВКЛ" or "ВЫКЛ", function(btn)
+ESPSettings.Skeleton = not ESPSettings.Skeleton
+btn.Text = ESPSettings.Skeleton and "ВКЛ" or "ВЫКЛ"
+end)
+
+CreateColorButton(EspTab, "Цвет Скелета:", ESPSettings.SkeletonColor, function(c) ESPSettings.SkeletonColor = c end)
+
+CreateToggleButton(EspTab, "Показывать Боксы:", ESPSettings.Boxes and "ВКЛ" or "ВЫКЛ", function(btn)
+ESPSettings.Boxes = not ESPSettings.Boxes
+btn.Text = ESPSettings.Boxes and "ВКЛ" or "ВЫКЛ"
+end)
+
+CreateColorButton(EspTab, "Цвет Боксов:", ESPSettings.BoxColor, function(c) ESPSettings.BoxColor = c end)
+
+-- STREAMING_CHUNK:Окно подтверждения
+local ConfirmOverlay = Instance.new("Frame")
+ConfirmOverlay.Size = UDim2.new(1, 0, 1, 0)
+ConfirmOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ConfirmOverlay.BackgroundTransparency = 1
+ConfirmOverlay.Visible = false
+ConfirmOverlay.ZIndex = 10
+ConfirmOverlay.Parent = MainFrame
+
+local ConfirmBox = Instance.new("Frame")
+ConfirmBox.Size = UDim2.new(0, 300, 0, 140)
+ConfirmBox.Position = UDim2.new(0.5, -150, 0.5, -50)
+ConfirmBox.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+ConfirmBox.BackgroundTransparency = 1
+ConfirmBox.ZIndex = 11
+ConfirmBox.Parent = ConfirmOverlay
+
+local ConfirmCorner = Instance.new("UICorner")
+ConfirmCorner.CornerRadius = UDim.new(0, 10)
+ConfirmCorner.Parent = ConfirmBox
+
+local ConfirmStroke = Instance.new("UIStroke")
+ConfirmStroke.Color = Color3.fromRGB(138, 75, 255)
+ConfirmStroke.Thickness = 1
+ConfirmStroke.Transparency = 1
+ConfirmStroke.Parent = ConfirmBox
+
+local ConfirmText = Instance.new("TextLabel")
+ConfirmText.Size = UDim2.new(1, 0, 0, 60)
+ConfirmText.Position = UDim2.new(0, 0, 0, 15)
+ConfirmText.BackgroundTransparency = 1
+ConfirmText.Text = "Вы уверены, что\nхотите закрыть меню?"
+ConfirmText.TextColor3 = Color3.fromRGB(255, 255, 255)
+ConfirmText.TextTransparency = 1
+ConfirmText.Font = Enum.Font.GothamMedium
+ConfirmText.TextSize = 16
+ConfirmText.ZIndex = 12
+ConfirmText.Parent = ConfirmBox
+
+local YesBtn = Instance.new("TextButton")
+YesBtn.Size = UDim2.new(0, 100, 0, 35)
+YesBtn.Position = UDim2.new(0.5, -110, 1, -45)
+YesBtn.BackgroundColor3 = Color3.fromRGB(138, 75, 255)
+YesBtn.BackgroundTransparency = 1
+YesBtn.Text = "Да"
+YesBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+YesBtn.TextTransparency = 1
+YesBtn.Font = Enum.Font.GothamBold
+YesBtn.TextSize = 14
+YesBtn.ZIndex = 12
+YesBtn.Parent = ConfirmBox
+
+local YesCorner = Instance.new("UICorner")
+YesCorner.CornerRadius = UDim.new(0, 6)
+YesCorner.Parent = YesBtn
+
+local NoBtn = Instance.new("TextButton")
+NoBtn.Size = UDim2.new(0, 100, 0, 35)
+NoBtn.Position = UDim2.new(0.5, 10, 1, -45)
+NoBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+NoBtn.BackgroundTransparency = 1
+NoBtn.Text = "Нет"
+NoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+NoBtn.TextTransparency = 1
+NoBtn.Font = Enum.Font.GothamBold
+NoBtn.TextSize = 14
+NoBtn.ZIndex = 12
+NoBtn.Parent = ConfirmBox
+
+local NoCorner = Instance.new("UICorner")
+NoCorner.CornerRadius = UDim.new(0, 6)
+NoCorner.Parent = NoBtn
+
+-- STREAMING_CHUNK:Анимации и Логика окон
+local animInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local tweenInfoConfirm = TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local minimized = false
+local isClosing = false
+local isConfirming = false
+local isMenuOpen = true
+
+-- Появление окна ключа
+TweenService:Create(KeyFrame, animInfo, {Size = UDim2.new(0, 340, 0, 220)}):Play()
+
+KeyBtn.MouseButton1Click:Connect(function()
+if isKeyValid then
+-- Анимация закрытия меню ключа
+local fadeOut = TweenService:Create(KeyFrame, animInfo, {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1})
+TweenService:Create(KeyUIStroke, animInfo, {Transparency = 1}):Play()
+TweenService:Create(KeyDesc, animInfo, {TextTransparency = 1}):Play()
+TweenService:Create(KeyInput, animInfo, {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+TweenService:Create(KeyInputStroke, animInfo, {Transparency = 1}):Play()
+TweenService:Create(KeyBtn, animInfo, {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+
+    fadeOut:Play()
+    
+    -- После завершения скрытия ключа, открываем основное меню
+    fadeOut.Completed:Connect(function()
+        KeyFrame:Destroy()
+        MainFrame.Visible = true
+        TweenService:Create(MainFrame, animInfo, {Size = UDim2.new(0, 650, 0, 420)}):Play()
+    end)
+end
+
+
+end)
+
+local tabs = {AimbotTab, EspTab, InfoTab}
+
+for i, btn in ipairs(sideButtons) do
+btn.MouseButton1Click:Connect(function()
+for j, tab in ipairs(tabs) do
+if tab then tab.Visible = (i == j) end
+end
+for _, b in ipairs(sideButtons) do
+b:FindFirstChild("UIStroke").Transparency = (b == btn) and 0 or 0.5
+b.BackgroundColor3 = (b == btn) and Color3.fromRGB(90, 50, 200) or Color3.fromRGB(30, 30, 40)
+end
+end)
+end
+sideButtons[1].BackgroundColor3 = Color3.fromRGB(90, 50, 200)
+sideButtons[1]:FindFirstChild("UIStroke").Transparency = 0
+
+MenuBtn.MouseButton1Click:Connect(function()
+if isClosing or isConfirming or minimized then return end
+isMenuOpen = not isMenuOpen
+local targetX = isMenuOpen and 0 or -150
+TweenService:Create(SidePanel, animInfo, {Position = UDim2.new(0, targetX, 0, 50)}):Play()
+
+-- Плавное расширение и центрирование контента
+local contentTargetX = isMenuOpen and 150 or 0
+local contentTargetW = isMenuOpen and -150 or 0
+TweenService:Create(ContentContainer, animInfo, {
+    Position = UDim2.new(0, contentTargetX, 0, 50),
+    Size = UDim2.new(1, contentTargetW, 1, -50)
+}):Play()
+
+
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+if isClosing or isConfirming then return end
+isConfirming = true
+if minimized then
+minimized = false
+TweenService:Create(MainFrame, animInfo, {Size = UDim2.new(0, 650, 0, 420)}):Play()
+task.wait(0.2)
+end
+ConfirmOverlay.Visible = true
+TweenService:Create(ConfirmOverlay, tweenInfoConfirm, {BackgroundTransparency = 0.5}):Play()
+TweenService:Create(ConfirmBox, tweenInfoConfirm, {BackgroundTransparency = 0, Position = UDim2.new(0.5, -150, 0.5, -70)}):Play()
+TweenService:Create(ConfirmStroke, tweenInfoConfirm, {Transparency = 0}):Play()
+TweenService:Create(ConfirmText, tweenInfoConfirm, {TextTransparency = 0}):Play()
+TweenService:Create(YesBtn, tweenInfoConfirm, {BackgroundTransparency = 0.2, TextTransparency = 0}):Play()
+TweenService:Create(NoBtn, tweenInfoConfirm, {BackgroundTransparency = 0.5, TextTransparency = 0}):Play()
+end)
+
+NoBtn.MouseButton1Click:Connect(function()
+if not isConfirming then return end
+local hideOverlay = TweenService:Create(ConfirmOverlay, tweenInfoConfirm, {BackgroundTransparency = 1})
+TweenService:Create(ConfirmBox, tweenInfoConfirm, {BackgroundTransparency = 1, Position = UDim2.new(0.5, -150, 0.5, -50)}):Play()
+TweenService:Create(ConfirmStroke, tweenInfoConfirm, {Transparency = 1}):Play()
+TweenService:Create(ConfirmText, tweenInfoConfirm, {TextTransparency = 1}):Play()
+TweenService:Create(YesBtn, tweenInfoConfirm, {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+TweenService:Create(NoBtn, tweenInfoConfirm, {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+hideOverlay:Play()
+hideOverlay.Completed:Connect(function()
+if ConfirmOverlay.BackgroundTransparency == 1 then
+ConfirmOverlay.Visible = false
+isConfirming = false
+end
+end)
+end)
+
+YesBtn.MouseButton1Click:Connect(function()
+if isClosing then return end
+isClosing = true
+
+-- ОЧИСТКА ВСЕГО ПЕРЕД ЗАКРЫТИЕМ
+if getgenv().KapukaFOVCircle then SafeRemoveDrawing(getgenv().KapukaFOVCircle) end
+if getgenv().ClearKapukaESP then getgenv().ClearKapukaESP() end
+-- Очистка зависших ивентов
+if getgenv().KapukaConnections then
+    for _, conn in pairs(getgenv().KapukaConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    getgenv().KapukaConnections = {}
+end
+
+TweenService:Create(ConfirmOverlay, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+TweenService:Create(ConfirmBox, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+local closeAnim = TweenService:Create(MainFrame, tweenInfoConfirm, {Size = UDim2.new(0, 650, 0, 0), BackgroundTransparency = 1})
+TweenService:Create(MainUIStroke, tweenInfoConfirm, {Transparency = 1}):Play()
+closeAnim:Play()
+
+closeAnim.Completed:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+
+end)
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+if isClosing or isConfirming then return end
+minimized = not minimized
+
+if minimized and isMenuOpen then
+    isMenuOpen = false
+    TweenService:Create(SidePanel, animInfo, {Position = UDim2.new(0, -150, 0, 50)}):Play()
+    -- Разворачиваем контент при сворачивании
+    TweenService:Create(ContentContainer, animInfo, {
+        Position = UDim2.new(0, 0, 0, 50),
+        Size = UDim2.new(1, 0, 1, -50)
+    }):Play()
+end
+
+local targetSize = minimized and UDim2.new(0, 650, 0, 50) or UDim2.new(0, 650, 0, 420)
+TweenService:Create(MainFrame, animInfo, {Size = targetSize}):Play()
+TweenService:Create(MinimizeBtn, animInfo, {Rotation = minimized and 180 or 0}):Play()
+
+
+end)
+
+-- STREAMING_CHUNK:Перетаскивание интерфейса
+local dragging, dragInput, dragStart, startPos
+local function updateDrag(input)
+local delta = input.Position - dragStart
+TweenService:Create(MainFrame, TweenInfo.new(0.1, Enum.EasingStyle.Linear), {
+Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+}):Play()
+end
+
+TopBar.InputBegan:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+dragging = true
+dragStart = input.Position
+startPos = MainFrame.Position
+input.Changed:Connect(function()
+if input.UserInputState == Enum.UserInputState.End then dragging = false end
+end)
+end
+end)
+
+TopBar.InputChanged:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+dragInput = input
+end
+end)
+
+table.insert(getgenv().KapukaConnections, UserInputService.InputChanged:Connect(function(input)
+if input == dragInput and dragging then
+updateDrag(input)
+end
+end))
+
+-- STREAMING_CHUNK:Инициализация Drawing
+local FOVCircle
+if Drawing then
+FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = false
+FOVCircle.Thickness = 1.5
+FOVCircle.Color = Color3.fromRGB(138, 75, 255)
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
+getgenv().KapukaFOVCircle = FOVCircle
+end
+
+-- STREAMING_CHUNK:Логика ESP
+local espCache = {}
+
+local function CreateLine()
+if not Drawing then return nil end
+local line = Drawing.new("Line")
+line.Visible = false
+line.Thickness = 1.5
+line.Color = Color3.fromRGB(255, 255, 255)
+line.Transparency = 1
+return line
+end
+
+local function CreateBox()
+if not Drawing then return nil end
+local box = Drawing.new("Square")
+box.Visible = false
+box.Thickness = 1.5
+box.Color = Color3.fromRGB(255, 255, 255)
+box.Filled = false
+box.Transparency = 1
+return box
+end
+
+local R15Bones = {
+{"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
+{"UpperTorso", "LeftUpperArm"}, {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
+{"UpperTorso", "RightUpperArm"}, {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"},
+{"LowerTorso", "LeftUpperLeg"}, {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"},
+{"LowerTorso", "RightUpperLeg"}, {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"}
+}
+
+local R6Bones = {
+{"Head", "Torso"},
+{"Torso", "Left Arm"}, {"Torso", "Right Arm"},
+{"Torso", "Left Leg"}, {"Torso", "Right Leg"}
+}
+
+local function ClearESP(player)
+if espCache[player] then
+for _, obj in pairs(espCache[player].SkeletonLines) do SafeRemoveDrawing(obj) end
+if espCache[player].Box then SafeRemoveDrawing(espCache[player].Box) end
+espCache[player] = nil
+end
+if player.Character and player.Character:FindFirstChild("KapukaChams") then
+player.Character.KapukaChams:Destroy()
+end
+end
+
+getgenv().ClearKapukaESP = function()
+for _, player in ipairs(Players:GetPlayers()) do ClearESP(player) end
+end
+
+table.insert(getgenv().KapukaConnections, Players.PlayerRemoving:Connect(function(player) ClearESP(player) end))
+
+local function UpdateESP()
+for _, player in ipairs(Players:GetPlayers()) do
+if player == LocalPlayer then continue end
+local char = player.Character
+if not char then
+ClearESP(player)
+continue
+end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChild("Humanoid")
+    
+    if not (hrp and hum and hum.Health > 0) or not ESPSettings.Enabled then
+        ClearESP(player)
+        continue
+    end
+    
+    if not espCache[player] then
+        espCache[player] = { SkeletonLines = {}, Box = CreateBox() }
+    end
+    
+    local cache = espCache[player]
+    local hrpPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+    
+    -- Чамсы
+    local chams = char:FindFirstChild("KapukaChams")
+    if ESPSettings.Chams then
+        if not chams then
+            chams = Instance.new("Highlight")
+            chams.Name = "KapukaChams"
+            chams.Parent = char
+            chams.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        end
+        chams.FillColor = ESPSettings.ChamsColor
+        chams.OutlineColor = Color3.new(1, 1, 1)
+    else
+        if chams then chams:Destroy() end
+    end
+    
+    if not Drawing then continue end
+    
+    if not onScreen then
+        if cache.Box then cache.Box.Visible = false end
+        for _, line in pairs(cache.SkeletonLines) do line.Visible = false end
+        continue
+    end
+    
+    -- Боксы
+    if ESPSettings.Boxes and cache.Box then
+        local head = char:FindFirstChild("Head")
+        if head then
+            local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+            local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+            local height = math.abs(headPos.Y - legPos.Y)
+            local width = height / 2
+            
+            cache.Box.Size = Vector2.new(width, height)
+            cache.Box.Position = Vector2.new(hrpPos.X - width/2, headPos.Y)
+            cache.Box.Color = ESPSettings.BoxColor
+            cache.Box.Visible = true
+        else
+            cache.Box.Visible = false
+        end
+    elseif cache.Box then
+        cache.Box.Visible = false
+    end
+    
+    -- Скелет
+    if ESPSettings.Skeleton then
+        local isR15 = char:FindFirstChild("UpperTorso") ~= nil
+        local boneMap = isR15 and R15Bones or R6Bones
+        
+        for i, connection in ipairs(boneMap) do
+            local part1 = char:FindFirstChild(connection[1])
+            local part2 = char:FindFirstChild(connection[2])
+            
+            if not cache.SkeletonLines[i] then cache.SkeletonLines[i] = CreateLine() end
+            local line = cache.SkeletonLines[i]
+            
+            if part1 and part2 then
+                local p1, vis1 = Camera:WorldToViewportPoint(part1.Position)
+                local p2, vis2 = Camera:WorldToViewportPoint(part2.Position)
+                
+                if vis1 or vis2 then
+                    line.From = Vector2.new(p1.X, p1.Y)
+                    line.To = Vector2.new(p2.X, p2.Y)
+                    line.Color = ESPSettings.SkeletonColor
+                    line.Visible = true
+                else
+                    line.Visible = false
+                end
+            else
+                line.Visible = false
+            end
+        end
+        
+        for i = #boneMap + 1, #cache.SkeletonLines do
+            cache.SkeletonLines[i].Visible = false
+        end
+    else
+        for _, line in pairs(cache.SkeletonLines) do
+            line.Visible = false
+        end
+    end
+end
+
+
+end
+
+-- STREAMING_CHUNK:Логика Аимбота
+local function GetTargetParts(character)
+local parts = {}
+local boneMap = {
+["Голова"] = {"Head"},
+["Торс"] = {"HumanoidRootPart", "Torso", "UpperTorso"},
+["Руки"] = {"Right Arm", "Left Arm", "RightUpperArm", "LeftUpperArm", "RightLowerArm", "LeftLowerArm"},
+["Ноги"] = {"Right Leg", "Left Leg", "RightUpperLeg", "LeftUpperLeg", "RightLowerLeg", "LeftLowerLeg"}
+}
+
+if AimbotSettings.TargetBone == "Ближайшая" then
+    for _, list in pairs(boneMap) do
+        for _, v in ipairs(list) do
+            if character:FindFirstChild(v) then table.insert(parts, character[v]) end
+        end
+    end
+else
+    for _, v in ipairs(boneMap[AimbotSettings.TargetBone] or {}) do
+        if character:FindFirstChild(v) then table.insert(parts, character[v]) end
+    end
+end
+return parts
+
+
+end
+
+local function IsWallBetween(targetPos)
+local raycastParams = RaycastParams.new()
+raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+raycastParams.IgnoreWater = true
+local rayResult = game.Workspace:Raycast(Camera.CFrame.Position, targetPos - Camera.CFrame.Position, raycastParams)
+
+if rayResult and rayResult.Instance then
+    if not rayResult.Instance:IsDescendantOf(game.Workspace) then return true end
+    local character = rayResult.Instance:FindFirstAncestorOfClass("Model")
+    if character and Players:GetPlayerFromCharacter(character) then return false end
+    return true
+end
+return false
+
+
+end
+
+local function GetClosestTarget()
+local closestPart = nil
+local shortestDistance = AimbotSettings.FOV
+local mousePos = UserInputService:GetMouseLocation()
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+        if player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then continue end
+        
+        local partsToCheck = GetTargetParts(player.Character)
+        
+        for _, part in ipairs(partsToCheck) do
+            local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+            
+            if onScreen then
+                local distance = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                if distance < shortestDistance then
+                    if not IsWallBetween(part.Position) then
+                        closestPart = part
+                        shortestDistance = distance
+                    end
+                end
+            end
+        end
+    end
+end
+return closestPart
+
+
+end
+
+local function CheckActivation()
+if not AimbotSettings.Enabled then return false end
+
+if AimbotSettings.ActivationMode == "Always" then
+    return true
+elseif AimbotSettings.ActivationMode == "Hold" then
+    local bType = typeof(AimbotSettings.Bind)
+    if bType == "EnumItem" then
+        if AimbotSettings.Bind.EnumType == Enum.KeyCode then
+            return UserInputService:IsKeyDown(AimbotSettings.Bind)
+        elseif AimbotSettings.Bind.EnumType == Enum.UserInputType then
+            local validMouse = {
+                [Enum.UserInputType.MouseButton1] = true,
+                [Enum.UserInputType.MouseButton2] = true,
+                [Enum.UserInputType.MouseButton3] = true
+            }
+            if validMouse[AimbotSettings.Bind] then
+                return UserInputService:IsMouseButtonPressed(AimbotSettings.Bind)
+            end
+        end
+    end
+elseif AimbotSettings.ActivationMode == "Toggle" then
+    return AimbotSettings.ToggleState
+end
+return false
+
+
+end
+
+-- STREAMING_CHUNK:Главный цикл отрисовки
+table.insert(getgenv().KapukaConnections, RunService.RenderStepped:Connect(function()
+if isClosing then return end
+UpdateESP()
+
+if FOVCircle then
+    if AimbotSettings.ShowFOV and AimbotSettings.Enabled then
+        FOVCircle.Visible = true
+        FOVCircle.Radius = AimbotSettings.FOV
+        FOVCircle.Position = UserInputService:GetMouseLocation()
+    else
+        FOVCircle.Visible = false
+    end
+end
+
+if CheckActivation() then
+    local targetPart = GetClosestTarget()
+    
+    if targetPart then
+        local targetPos = targetPart.Position
+        
+        if targetPart.Parent and targetPart.Parent:FindFirstChild("HumanoidRootPart") then
+            targetPos = targetPos + (targetPart.Parent.HumanoidRootPart.Velocity * 0.035) 
+        end
+        
+        local lookAt = CFrame.new(Camera.CFrame.Position, targetPos)
+        
+        if AimbotSettings.Smoothness > 1 then
+            local lerpSpeed = math.clamp(1 / AimbotSettings.Smoothness, 0.05, 1)
+            Camera.CFrame = Camera.CFrame:Lerp(lookAt, lerpSpeed)
+        else
+            Camera.CFrame = lookAt
+        end
+    end
+end
+
+
+end))
