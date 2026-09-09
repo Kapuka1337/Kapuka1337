@@ -392,6 +392,17 @@ KapukaState.Translations = {
 ["Стример мод включён"] = "Streamer mode enabled",
 ["Стример мод выключен"] = "Streamer mode disabled"
 }
+KapukaState.Translations["Основное движение"] = "Basic movement"
+KapukaState.Translations["Мобильность"] = "Mobility"
+KapukaState.Translations["Полёт и перемещение"] = "Flight & movement"
+KapukaState.Translations["Дополнительные функции"] = "Advanced movement"
+KapukaState.Translations["Призрачный режим"] = "Ghost mode"
+KapukaState.Translations["Баннихоп"] = "Bunny Hop"
+KapukaState.Translations["Основные настройки"] = "General"
+KapukaState.Translations["Интерфейс"] = "Interface"
+KapukaState.Translations["Watermark"] = "Watermark"
+KapukaState.Translations["Anti AFK"] = "Anti AFK"
+KapukaState.Translations["Прочее"] = "Other"
 KapukaState.LocalizedObjects = {}
 KapukaState.DynamicRefreshers = {}
 function KapukaState.t(text)
@@ -2680,6 +2691,102 @@ if current > #antiAfkModes then current = 1 end
 KapukaState.AntiAFKSettings.Mode = antiAfkModes[current]
 btn.Text = KapukaState.t(antiAfkModeNames[KapukaState.AntiAFKSettings.Mode])
 end)
+function KapukaState.addCategoryHeader(parent, title, subtitle, order)
+local frame = Instance.new("Frame")
+frame.Name = "KapukaCategory_" .. tostring(order)
+frame.Size = UDim2.new(1, 0, 0, subtitle and 40 or 30)
+frame.BackgroundTransparency = 1
+frame.LayoutOrder = order
+frame:SetAttribute("KapukaCategoryHeader", true)
+frame.Parent = parent
+local accent = Instance.new("Frame")
+accent.Size = UDim2.new(0, 3, 1, -8)
+accent.Position = UDim2.new(0, 0, 0, 4)
+accent.BackgroundColor3 = Color3.fromRGB(138, 75, 255)
+accent.BorderSizePixel = 0
+accent.Parent = frame
+Instance.new("UICorner", accent).CornerRadius = UDim.new(1, 0)
+local label = Instance.new("TextLabel")
+label.Size = subtitle and UDim2.new(1, -18, 0, 22) or UDim2.new(1, -18, 1, 0)
+label.Position = UDim2.new(0, 12, 0, subtitle and 0 or 4)
+label.BackgroundTransparency = 1
+label.TextXAlignment = Enum.TextXAlignment.Left
+label.TextYAlignment = Enum.TextYAlignment.Center
+label.TextColor3 = Color3.fromRGB(238, 238, 246)
+label.Font = Enum.Font.GothamBold
+label.TextSize = 13
+KapukaState.registerLocalizedObject(label, title)
+label.Parent = frame
+if subtitle then
+local sub = Instance.new("TextLabel")
+sub.Size = UDim2.new(1, -18, 0, 18)
+sub.Position = UDim2.new(0, 12, 0, 20)
+sub.BackgroundTransparency = 1
+sub.TextXAlignment = Enum.TextXAlignment.Left
+sub.TextYAlignment = Enum.TextYAlignment.Center
+sub.TextColor3 = Color3.fromRGB(135, 135, 155)
+sub.Font = Enum.Font.GothamMedium
+sub.TextSize = 10
+KapukaState.registerLocalizedObject(sub, subtitle)
+sub.Parent = frame
+end
+return frame
+end
+
+function KapukaState.organizeMovementAndSettingsTabs()
+local function setOrders(tab, orderMap)
+for raw, order in pairs(orderMap) do
+for _, child in ipairs(tab:GetChildren()) do
+if child:IsA("Frame") and child:GetAttribute("KapukaControlFrame") and child:GetAttribute("KapukaRawTitle") == raw then
+child.LayoutOrder = order
+end
+end
+end
+end
+local function addHeaders(tab, defs)
+for _, d in ipairs(defs) do
+if not tab:FindFirstChild(d.Name) then
+KapukaState.addCategoryHeader(tab, d.Title, d.Subtitle, d.Order)
+end
+end
+end
+
+addHeaders(KapukaState.MovementTab, {
+{Name="KapukaMoveBasic", Title="Основное движение", Subtitle="Скорость, прыжок и базовые перемещения", Order=10},
+{Name="KapukaMoveMobility", Title="Мобильность", Subtitle="Платформа, Noclip и телепортация", Order=110},
+{Name="KapukaMoveFlight", Title="Полёт и перемещение", Subtitle="Fly и Click Fly", Order=210},
+{Name="KapukaMoveAdvanced", Title="Дополнительные функции", Subtitle="Удобные дополнительные режимы", Order=310},
+{Name="KapukaMoveGhost", Title="Призрачный режим", Subtitle="Параметры клона и его движения", Order=410},
+{Name="KapukaMoveBhop", Title="Баннихоп", Subtitle="Автоматические прыжки и стрейф", Order=510}
+})
+setOrders(KapukaState.MovementTab, {
+["Скорость"]=20, ["Высота прыжка"]=30, ["Бесконечный прыжок:"]=40, ["Бинд Бесконечного прыжка"]=50,
+["Anti Fling:"]=120, ["Бинд Anti Fling"]=130, ["Платформа:"]=150, ["Бинд Платформы"]=160, ["Платформа вверх"]=170, ["Платформа вниз"]=180,
+["Noclip:"]=190, ["Бинд Noclip"]=200, ["Клик ТП:"]=220, ["Бинд Клик ТП"]=230,
+["Железный Флай:"]=260, ["Бинд Железного Флая"]=270, ["Скорость полёта"]=280, ["Набор скорости"]=290,
+["Клик Флай:"]=320, ["Бинд Клик Флая"]=330, ["Клик Флай: Noclip"]=340, ["Скорость Клик Флая"]=350,
+["Призрачный режим:"]=420, ["Бинд Призрачного режима"]=430, ["Коллизия призрака:"]=440, ["Гравитация призрака:"]=450, ["Скорость призрака"]=460, ["Высота прыжка призрака"]=470,
+["Баннихоп:"]=520, ["Бинд Баннихопа"]=530, ["Лимит скорости баннихопа"]=540
+})
+
+addHeaders(KapukaState.SettingsTab, {
+{Name="KapukaSetGeneral", Title="Основные настройки", Subtitle="Управление меню и системные параметры", Order=10},
+{Name="KapukaSetInterface", Title="Интерфейс", Subtitle="HUD, язык и внешний вид", Order=110},
+{Name="KapukaSetWatermark", Title="Watermark", Subtitle="Положение и отображение плашки", Order=210},
+{Name="KapukaSetAFK", Title="Anti AFK", Subtitle="Автоматическая активность и интервалы", Order=310},
+{Name="KapukaSetOther", Title="Прочее", Subtitle="Дополнительные настройки", Order=410}
+})
+setOrders(KapukaState.SettingsTab, {
+["Звуки меню:"]=20, ["Бинд Звуков меню"]=30, ["Остановить звуки:"]=40, ["FOV камеры"]=50,
+["Скрытие/раскрытие меню:"]=120, ["Бинд центрирования меню"]=130, ["Шрифт интерфейса:"]=150, ["Размер текста меню"]=160, ["Язык:"]=180,
+["Отображение функций:"]=200, ["Бинд Отображения функций"]=210, ["Позиция функций:"]=220, ["Размер текста функций"]=230,
+["Водяной знак:"]=320, ["Позиция водяного знака:"]=330,
+["Анти AFK:"]=420, ["Бинд Anti AFK"]=430, ["Интервал Anti AFK"]=440, ["Случайный интервал Anti AFK:"]=450, ["Минимум Anti AFK"]=460, ["Максимум Anti AFK"]=470,
+["Idled-событие Anti AFK:"]=480, ["Движение Anti AFK:"]=490, ["Прыжок Anti AFK:"]=500, ["Движение камеры Anti AFK:"]=510, ["Пауза Anti AFK при вводе:"]=520, ["Режим Anti AFK:"]=530,
+["Стример режим (F6):"]=600, ["Консоль:"]=610, ["Реконнект"]=620
+})
+end
+
 function KapukaState.applyCollapsibleFunctionUI()
 local function mapControls(tab)
 local result = {}
