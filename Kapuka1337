@@ -2760,13 +2760,13 @@ addHeaders(KapukaState.MovementTab, {
 {Name="KapukaMoveBhop", Title="Баннихоп", Subtitle="Автоматические прыжки и стрейф", Order=510}
 })
 setOrders(KapukaState.MovementTab, {
-["Скорость"]=20, ["Высота прыжка"]=30, ["Скорость полёта"]=40, ["Набор скорости"]=50, ["Гравитация:"]=60, ["Скорость Клик Флая"]=70, ["Скорость призрака"]=80, ["Высота прыжка призрака"]=90, ["Лимит скорости баннихопа"]=100,
-["Бесконечный прыжок:"]=130, ["Бинд Бесконечного прыжка"]=140, ["Anti Fling:"]=160, ["Бинд Anti Fling"]=170, ["Платформа:"]=190, ["Бинд Платформы"]=200, ["Платформа вверх"]=210, ["Платформа вниз"]=220,
-["Noclip:"]=240, ["Бинд Noclip"]=250, ["Клик ТП:"]=270, ["Бинд Клик ТП"]=280,
-["Железный Флай:"]=300, ["Бинд Железного Флая"]=310,
-["Клик Флай:"]=330, ["Бинд Клик Флая"]=340, ["Клик Флай: Noclip"]=350,
-["Призрачный режим:"]=380, ["Бинд Призрачного режима"]=390, ["Коллизия призрака:"]=400, ["Гравитация призрака:"]=410,
-["Баннихоп:"]=440, ["Бинд Баннихопа"]=450
+["Скорость"]=20, ["Высота прыжка"]=30, ["Бесконечный прыжок:"]=40, ["Бинд Бесконечного прыжка"]=50,
+["Anti Fling:"]=120, ["Бинд Anti Fling"]=130, ["Платформа:"]=150, ["Бинд Платформы"]=160, ["Платформа вверх"]=170, ["Платформа вниз"]=180,
+["Noclip:"]=190, ["Бинд Noclip"]=200, ["Клик ТП:"]=220, ["Бинд Клик ТП"]=230,
+["Железный Флай:"]=260, ["Бинд Железного Флая"]=270, ["Скорость полёта"]=280, ["Набор скорости"]=290,
+["Клик Флай:"]=320, ["Бинд Клик Флая"]=330, ["Клик Флай: Noclip"]=340, ["Скорость Клик Флая"]=350,
+["Призрачный режим:"]=420, ["Бинд Призрачного режима"]=430, ["Коллизия призрака:"]=440, ["Гравитация призрака:"]=450, ["Скорость призрака"]=460, ["Высота прыжка призрака"]=470,
+["Баннихоп:"]=520, ["Бинд Баннихопа"]=530, ["Лимит скорости баннихопа"]=540
 })
 
 addHeaders(KapukaState.SettingsTab, {
@@ -2798,9 +2798,55 @@ end
 end
 return result
 end
-local function addArrow(header)
+local sections = {
+[KapukaState.AimbotTab] = {
+{Header="Включить Аимбот:", Items={"Бинд Аимбота"}},
+{Header="Отображать FOV:", Items={"Бинд FOV"}},
+{Header="Игнорировать стены:", Items={"Бинд Игнорировать стены"}},
+{Header="Захват цели:", Items={"Бинд Захвата цели"}},
+{Header="Предикшн:", Items={"Время предикшна"}},
+{Header="Триггербот:", Items={"Бинд Триггербота", "Задержка Триггербота"}},
+{Header="Анти-отдача:", Items={"Бинд Анти-отдачи"}}
+},
+[KapukaState.EspTab] = {
+{Header="Глобальный ВХ:", Items={"Бинд Глобального ВХ"}},
+{Header="Показывать Чамсы:", Items={"Бинд Чамсов", "Цвет Чамсов:"}},
+{Header="Скелет (Кости):", Items={"Бинд Скелета", "Цвет Скелета:"}},
+{Header="Показывать Боксы:", Items={"Бинд Боксов", "Цвет Боксов:"}},
+{Header="Показывать Glow:", Items={"Цвет видимого ВХ:", "Цвет невидимого ВХ:"}},
+{Header="Показывать ники:", Items={}},
+{Header="Полоса здоровья:", Items={}},
+{Header="Показывать дистанцию:", Items={}},
+{Header="Линии к игрокам:", Items={}},
+{Header="Стрелки вне экрана:", Items={}}
+},
+[KapukaState.MovementTab] = {
+{Header="Бесконечный прыжок:", Items={"Бинд Бесконечного прыжка"}},
+{Header="Anti Fling:", Items={"Бинд Anti Fling"}},
+{Header="Платформа:", Items={"Бинд Платформы", "Платформа вверх", "Платформа вниз"}},
+{Header="Железный Флай:", Items={"Бинд Железного Флая", "Скорость полёта", "Набор скорости"}},
+{Header="Noclip:", Items={"Бинд Noclip"}},
+{Header="Клик ТП:", Items={"Бинд Клик ТП"}},
+{Header="Клик Флай:", Items={"Бинд Клик Флая", "Клик Флай: Noclip", "Скорость Клик Флая"}},
+{Header="Призрачный режим:", Items={"Бинд Призрачного режима", "Коллизия призрака:", "Гравитация призрака:", "Скорость призрака", "Высота прыжка призрака"}},
+{Header="Баннихоп:", Items={"Бинд Баннихопа", "Лимит скорости баннихопа"}}
+},
+[KapukaState.SettingsTab] = {
+{Header="Звуки меню:", Items={"Бинд Звуков меню", "Остановить звуки:"}},
+{Header="Отображение функций:", Items={"Бинд Отображения функций", "Позиция функций:", "Размер текста функций"}},
+{Header="Скрытие/раскрытие меню:", Items={"Бинд центрирования меню"}},
+{Header="Шрифт интерфейса:", Items={"Размер текста меню"}},
+{Header="Водяной знак:", Items={"Позиция водяного знака:"}},
+{Header="Анти AFK:", Items={"Интервал Anti AFK", "Случайный интервал Anti AFK:", "Минимум Anti AFK", "Максимум Anti AFK", "Idled-событие Anti AFK:", "Движение Anti AFK:", "Прыжок Anti AFK:", "Движение камеры Anti AFK:", "Пауза Anti AFK при вводе:", "Режим Anti AFK:"}}
+}
+}
+for tab, defs in pairs(sections) do
+local controls = mapControls(tab)
+for _, section in ipairs(defs) do
+local header = controls[section.Header]
+if header and #section.Items > 0 then
 local arrow = header:FindFirstChild("KapukaSectionArrow")
-if arrow then return arrow end
+if not arrow then
 arrow = Instance.new("TextButton")
 arrow.Name = "KapukaSectionArrow"
 arrow.Size = UDim2.new(0, 20, 0, 20)
@@ -2815,11 +2861,11 @@ arrow.AutoButtonColor = false
 arrow.ZIndex = 8
 arrow.Parent = header
 Instance.new("UICorner", arrow).CornerRadius = UDim.new(0, 6)
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(138, 75, 255)
-stroke.Thickness = 0.8
-stroke.Transparency = 0.35
-stroke.Parent = arrow
+local arrowStroke = Instance.new("UIStroke")
+arrowStroke.Color = Color3.fromRGB(138, 75, 255)
+arrowStroke.Thickness = 0.8
+arrowStroke.Transparency = 0.35
+arrowStroke.Parent = arrow
 local label = nil
 for _, child in ipairs(header:GetChildren()) do
 if child:IsA("TextLabel") and child:GetAttribute("KapukaLanguageKey") then label = child break end
@@ -2828,136 +2874,121 @@ if label then
 label.Position = UDim2.new(0, 32, 0, 0)
 label.Size = UDim2.new(1, -82, 1, 0)
 end
-return arrow
 end
-local function rememberVisuals(control)
-local visuals = {}
+local expanded = false
+local original = {}
+for _, raw in ipairs(section.Items) do
+local control = controls[raw]
+if control then
+local data = {
+Size = control.Size,
+BackgroundTransparency = control.BackgroundTransparency
+}
+original[control] = data
 for _, child in ipairs(control:GetDescendants()) do
 if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
-visuals[child] = {TextTransparency = child.TextTransparency, BackgroundTransparency = child.BackgroundTransparency}
+child:SetAttribute("KapukaSectionTextTransparency", child.TextTransparency)
+child:SetAttribute("KapukaSectionBackgroundTransparency", child.BackgroundTransparency)
 elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
-visuals[child] = {ImageTransparency = child.ImageTransparency, BackgroundTransparency = child.BackgroundTransparency}
+child:SetAttribute("KapukaSectionImageTransparency", child.ImageTransparency)
+child:SetAttribute("KapukaSectionBackgroundTransparency", child.BackgroundTransparency)
 end
 end
-return visuals
-end
-local function setVisuals(control, visuals, alpha)
-for child, values in pairs(visuals) do
-if child and child.Parent then
-if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
-child.TextTransparency = alpha and 1 or values.TextTransparency
-child.BackgroundTransparency = alpha and 1 or values.BackgroundTransparency
-elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
-child.ImageTransparency = alpha and 1 or values.ImageTransparency
-child.BackgroundTransparency = alpha and 1 or values.BackgroundTransparency
+control.Visible = false
 end
 end
-end
-end
-local function animateChildren(children, expanded)
-local tweenInfo = expanded and TweenInfo.new(0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.Out) or TweenInfo.new(0.20, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-for _, item in ipairs(children) do
-local control, original, visuals = item.control, item.size, item.visuals
-local collapsedSize = UDim2.new(original.X.Scale, original.X.Offset, 0, 0)
-if expanded then
+local function animateControl(control, show, instant)
+local data = original[control]
+if not data or not control then return end
+local targetSize = data.Size
+local collapsedSize = UDim2.new(targetSize.X.Scale, targetSize.X.Offset, 0, 0)
+if show then
 control.Visible = true
 control.Size = collapsedSize
 control.BackgroundTransparency = 1
-setVisuals(control, visuals, true)
-KapukaState.TweenService:Create(control, tweenInfo, {
-Size = original,
-BackgroundTransparency = item.backgroundTransparency
-}):Play()
-for child, values in pairs(visuals) do
-if child and child.Parent then
-local goal = {}
+for _, child in ipairs(control:GetDescendants()) do
 if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
- goal.TextTransparency = values.TextTransparency
- goal.BackgroundTransparency = values.BackgroundTransparency
+child.TextTransparency = 1
+child.BackgroundTransparency = 1
 elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
- goal.ImageTransparency = values.ImageTransparency
- goal.BackgroundTransparency = values.BackgroundTransparency
+child.ImageTransparency = 1
+child.BackgroundTransparency = 1
 end
-KapukaState.TweenService:Create(child, tweenInfo, goal):Play()
+end
+if instant then
+control.Size = targetSize
+control.BackgroundTransparency = data.BackgroundTransparency
+for _, child in ipairs(control:GetDescendants()) do
+if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+local bt = child:GetAttribute("KapukaSectionTextTransparency")
+local bb = child:GetAttribute("KapukaSectionBackgroundTransparency")
+if bt ~= nil then child.TextTransparency = bt end
+if bb ~= nil then child.BackgroundTransparency = bb end
+elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+local it = child:GetAttribute("KapukaSectionImageTransparency")
+local ib = child:GetAttribute("KapukaSectionBackgroundTransparency")
+if it ~= nil then child.ImageTransparency = it end
+if ib ~= nil then child.BackgroundTransparency = ib end
+end
+end
+return
+end
+local tweenInfo = TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+KapukaState.TweenService:Create(control, tweenInfo, {
+Size = targetSize,
+BackgroundTransparency = data.BackgroundTransparency
+}):Play()
+for _, child in ipairs(control:GetDescendants()) do
+if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+local bt = child:GetAttribute("KapukaSectionTextTransparency") or 0
+local bb = child:GetAttribute("KapukaSectionBackgroundTransparency") or 1
+KapukaState.TweenService:Create(child, tweenInfo, {TextTransparency = bt, BackgroundTransparency = bb}):Play()
+elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+local it = child:GetAttribute("KapukaSectionImageTransparency") or 0
+local ib = child:GetAttribute("KapukaSectionBackgroundTransparency") or 1
+KapukaState.TweenService:Create(child, tweenInfo, {ImageTransparency = it, BackgroundTransparency = ib}):Play()
 end
 end
 else
-local tween = KapukaState.TweenService:Create(control, tweenInfo, {
-Size = collapsedSize,
-BackgroundTransparency = 1
-})
-tween:Play()
-for child, _ in pairs(visuals) do
-if child and child.Parent then
-local goal = {}
-if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
- goal.TextTransparency = 1
- goal.BackgroundTransparency = 1
-elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
- goal.ImageTransparency = 1
- goal.BackgroundTransparency = 1
-end
-KapukaState.TweenService:Create(child, tweenInfo, goal):Play()
-end
-end
-item.tween = tween
-end
-end
-local function makeGroup(tab, headerName, itemNames)
-local controls = mapControls(tab)
-local header = controls[headerName]
-if not header then return end
-local arrow = addArrow(header)
-local children = {}
-for _, raw in ipairs(itemNames) do
-local control = controls[raw]
-if control and control ~= header then
-local item = {
-control = control,
-size = control.Size,
-backgroundTransparency = control.BackgroundTransparency,
-visuals = rememberVisuals(control),
-}
-table.insert(children, item)
+if instant then
 control.Visible = false
-control:SetAttribute("KapukaCollapsibleChild", true)
+control.Size = collapsedSize
+return
+end
+local tweenInfo = TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+local tween = KapukaState.TweenService:Create(control, tweenInfo, {Size = collapsedSize, BackgroundTransparency = 1})
+for _, child in ipairs(control:GetDescendants()) do
+if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+KapukaState.TweenService:Create(child, tweenInfo, {TextTransparency = 1, BackgroundTransparency = 1}):Play()
+elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+KapukaState.TweenService:Create(child, tweenInfo, {ImageTransparency = 1, BackgroundTransparency = 1}):Play()
 end
 end
-local expanded = false
-local function refreshArrow()
+tween:Play()
+tween.Completed:Connect(function()
+if not expanded then
+control.Visible = false
+end
+end)
+end
+end
+local function apply(instant)
+for _, raw in ipairs(section.Items) do
+local control = controls[raw]
+if control then animateControl(control, expanded, instant) end
+end
 arrow.Text = expanded and "v" or ">"
 arrow.BackgroundColor3 = expanded and Color3.fromRGB(48, 36, 68) or Color3.fromRGB(30, 25, 42)
 end
 arrow.MouseButton1Click:Connect(function()
 expanded = not expanded
 KapukaState.playClickSound()
-if expanded then
-for _, item in ipairs(children) do
-if item.tween then pcall(function() item.tween:Cancel() end) end
-end
-else
-for _, item in ipairs(children) do
-if item.tween then pcall(function() item.tween:Cancel() end) end
-end
-end
-animateChildren(children, expanded)
-refreshArrow()
+apply(false)
 end)
-refreshArrow()
+apply(true)
 end
-local aimbotItems = {
-"Выбор костей:", "Бинд Аимбота", "Отображать FOV:", "Бинд FOV", "Игнорировать стены:", "Бинд Игнорировать стены",
-"Захват цели:", "Бинд Захвата цели", "Плавность (Smoothness)", "Размер FOV", "Дальность аима", "Предикшн:",
-"Время предикшна", "Триггербот:", "Бинд Триггербота", "Анти-отдача:", "Бинд Анти-отдачи"
-}
-local espItems = {
-"Бинд Глобального ВХ", "Показывать Чамсы:", "Бинд Чамсов", "Цвет Чамсов:", "Скелет (Кости):", "Бинд Скелета",
-"Цвет Скелета:", "Показывать Боксы:", "Бинд Боксов", "Цвет Боксов:", "Показывать Glow:", "Цвет видимого ВХ:",
-"Цвет невидимого ВХ:", "Показывать ники:", "Дальность ВХ", "Полоса здоровья:", "Показывать дистанцию:",
-"Линии к игрокам:", "Стрелки вне экрана:"
-}
-makeGroup(KapukaState.AimbotTab, "Включить Аимбот:", aimbotItems)
-makeGroup(KapukaState.EspTab, "Глобальный ВХ:", espItems)
+end
+end
 end
 
 function KapukaState.buildFontPopup()
