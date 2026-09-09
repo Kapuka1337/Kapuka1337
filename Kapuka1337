@@ -1,4 +1,4 @@
--- Kapuka v39
+-- Kapuka v44
 local KapukaState = {}
 KapukaState.CoreGui = game:GetService("CoreGui")
 KapukaState.SoundService = game:GetService("SoundService")
@@ -2748,8 +2748,8 @@ arrow.BackgroundColor3 = Color3.fromRGB(30, 25, 42)
 arrow.BackgroundTransparency = 0.1
 arrow.TextColor3 = Color3.fromRGB(210, 190, 255)
 arrow.Font = Enum.Font.GothamBold
-arrow.TextSize = 16
-arrow.Text = "›"
+arrow.TextSize = 15
+arrow.Text = ">"
 arrow.AutoButtonColor = false
 arrow.ZIndex = 8
 arrow.Parent = header
@@ -2769,20 +2769,116 @@ label.Size = UDim2.new(1, -82, 1, 0)
 end
 end
 local expanded = false
-local function apply()
+local original = {}
 for _, raw in ipairs(section.Items) do
 local control = controls[raw]
-if control then control.Visible = expanded end
+if control then
+local data = {
+Size = control.Size,
+BackgroundTransparency = control.BackgroundTransparency
+}
+original[control] = data
+for _, child in ipairs(control:GetDescendants()) do
+if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+child:SetAttribute("KapukaSectionTextTransparency", child.TextTransparency)
+child:SetAttribute("KapukaSectionBackgroundTransparency", child.BackgroundTransparency)
+elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+child:SetAttribute("KapukaSectionImageTransparency", child.ImageTransparency)
+child:SetAttribute("KapukaSectionBackgroundTransparency", child.BackgroundTransparency)
 end
-arrow.Text = expanded and "⌄" or "›"
+end
+control.Visible = false
+end
+end
+local function animateControl(control, show, instant)
+local data = original[control]
+if not data or not control then return end
+local targetSize = data.Size
+local collapsedSize = UDim2.new(targetSize.X.Scale, targetSize.X.Offset, 0, 0)
+if show then
+control.Visible = true
+control.Size = collapsedSize
+control.BackgroundTransparency = 1
+for _, child in ipairs(control:GetDescendants()) do
+if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+child.TextTransparency = 1
+child.BackgroundTransparency = 1
+elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+child.ImageTransparency = 1
+child.BackgroundTransparency = 1
+end
+end
+if instant then
+control.Size = targetSize
+control.BackgroundTransparency = data.BackgroundTransparency
+for _, child in ipairs(control:GetDescendants()) do
+if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+local bt = child:GetAttribute("KapukaSectionTextTransparency")
+local bb = child:GetAttribute("KapukaSectionBackgroundTransparency")
+if bt ~= nil then child.TextTransparency = bt end
+if bb ~= nil then child.BackgroundTransparency = bb end
+elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+local it = child:GetAttribute("KapukaSectionImageTransparency")
+local ib = child:GetAttribute("KapukaSectionBackgroundTransparency")
+if it ~= nil then child.ImageTransparency = it end
+if ib ~= nil then child.BackgroundTransparency = ib end
+end
+end
+return
+end
+local tweenInfo = TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+KapukaState.TweenService:Create(control, tweenInfo, {
+Size = targetSize,
+BackgroundTransparency = data.BackgroundTransparency
+}):Play()
+for _, child in ipairs(control:GetDescendants()) do
+if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+local bt = child:GetAttribute("KapukaSectionTextTransparency") or 0
+local bb = child:GetAttribute("KapukaSectionBackgroundTransparency") or 1
+KapukaState.TweenService:Create(child, tweenInfo, {TextTransparency = bt, BackgroundTransparency = bb}):Play()
+elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+local it = child:GetAttribute("KapukaSectionImageTransparency") or 0
+local ib = child:GetAttribute("KapukaSectionBackgroundTransparency") or 1
+KapukaState.TweenService:Create(child, tweenInfo, {ImageTransparency = it, BackgroundTransparency = ib}):Play()
+end
+end
+else
+if instant then
+control.Visible = false
+control.Size = collapsedSize
+return
+end
+local tweenInfo = TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+local tween = KapukaState.TweenService:Create(control, tweenInfo, {Size = collapsedSize, BackgroundTransparency = 1})
+for _, child in ipairs(control:GetDescendants()) do
+if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+KapukaState.TweenService:Create(child, tweenInfo, {TextTransparency = 1, BackgroundTransparency = 1}):Play()
+elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+KapukaState.TweenService:Create(child, tweenInfo, {ImageTransparency = 1, BackgroundTransparency = 1}):Play()
+end
+end
+tween:Play()
+tween.Completed:Connect(function()
+if not expanded then
+control.Visible = false
+end
+end)
+end
+end
+local function apply(instant)
+for _, raw in ipairs(section.Items) do
+local control = controls[raw]
+if control then animateControl(control, expanded, instant) end
+end
+arrow.Text = expanded and "v" or ">"
 arrow.BackgroundColor3 = expanded and Color3.fromRGB(48, 36, 68) or Color3.fromRGB(30, 25, 42)
 end
 arrow.MouseButton1Click:Connect(function()
 expanded = not expanded
 KapukaState.playClickSound()
-apply()
+apply(false)
 end)
-apply()
+apply(true)
 end
 end
 end
